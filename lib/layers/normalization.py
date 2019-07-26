@@ -35,13 +35,13 @@ class MovingBatchNormNd(nn.Module):
             self.weight.data.zero_()
             self.bias.data.zero_()
 
-    def forward(self, x, logpx=None, reverse=False):
+    def forward(self, z, logpz=None, reverse=False, condition=None):
         if reverse:
-            return self._reverse(x, logpx)
+            return self._reverse(z, logpz)
         else:
-            return self._forward(x, logpx)
+            return self._forward(z, logpz)
 
-    def _forward(self, x, logpx=None):
+    def _forward(self, x, logpx=None, **kwargs):
         c = x.size(1)
         used_mean = self.running_mean.clone().detach()
         used_var = self.running_var.clone().detach()

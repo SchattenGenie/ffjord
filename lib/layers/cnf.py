@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 
-from torchdiffeq import odeint_adjoint as odeint
+from torchdiffeq import odeint_adjoint
+from torchdiffeq import odeint
+
 
 from .wrappers.cnf_regularization import RegularizedODEfunc
 
@@ -9,13 +11,12 @@ __all__ = ["CNF"]
 
 
 class CNF(nn.Module):
-    def __init__(self, odefunc, T=1.0, train_T=False, regularization_fns=None, solver='dopri5', atol=1e-5, rtol=1e-5):
+    def __init__(self, odefunc, T=1.0, train_T=False, regularization_fns=None, odeint=odeint, solver='dopri5', atol=1e-5, rtol=1e-5):
         super(CNF, self).__init__()
         if train_T:
             self.register_parameter("sqrt_end_time", nn.Parameter(torch.sqrt(torch.tensor(T))))
         else:
             self.register_buffer("sqrt_end_time", torch.sqrt(torch.tensor(T)))
-
         nreg = 0
         if regularization_fns is not None:
             odefunc = RegularizedODEfunc(odefunc, regularization_fns)
@@ -24,6 +25,7 @@ class CNF(nn.Module):
         self.nreg = nreg
         self.regularization_states = None
         self.solver = solver
+        self.odeint = odeint
         self.atol = atol
         self.rtol = rtol
         self.test_solver = solver
@@ -31,7 +33,7 @@ class CNF(nn.Module):
         self.test_rtol = rtol
         self.solver_options = {}
 
-    def forward(self, z, logpz=None, integration_times=None, reverse=False):
+    def forward(self, z, condition, logpz=None, integration_times=None, reverse=False):
 
         if logpz is None:
             _logpz = torch.zeros(z.shape[0], 1).to(z)
@@ -50,9 +52,9 @@ class CNF(nn.Module):
         reg_states = tuple(torch.tensor(0).to(z) for _ in range(self.nreg))
 
         if self.training:
-            state_t = odeint(
+            state_t = self.odeint(
                 self.odefunc,
-                (z, _logpz) + reg_states,
+                (z, _logpz, condition) + reg_states,
                 integration_times.to(z),
                 atol=[self.atol, self.atol] + [1e20] * len(reg_states) if self.solver == 'dopri5' else self.atol,
                 rtol=[self.rtol, self.rtol] + [1e20] * len(reg_states) if self.solver == 'dopri5' else self.rtol,
@@ -60,9 +62,9 @@ class CNF(nn.Module):
                 options=self.solver_options,
             )
         else:
-            state_t = odeint(
+            state_t = self.odeint(
                 self.odefunc,
-                (z, _logpz),
+                (z, _logpz, condition),
                 integration_times.to(z),
                 atol=self.test_atol,
                 rtol=self.test_rtol,

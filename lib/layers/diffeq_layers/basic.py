@@ -54,13 +54,16 @@ class ConcatLinear(nn.Module):
 
 
 class ConcatLinear_v2(nn.Module):
-    def __init__(self, dim_in, dim_out):
-        super(ConcatLinear, self).__init__()
+    def __init__(self, dim_in, dim_out, condition_dim):
+        super(ConcatLinear_v2, self).__init__()
         self._layer = nn.Linear(dim_in, dim_out)
         self._hyper_bias = nn.Linear(1, dim_out, bias=False)
-
-    def forward(self, t, x):
-        return self._layer(x) + self._hyper_bias(t.view(1, 1))
+        self._cond_bias = nn.Sequential(nn.Linear(condition_dim, 32), 
+                                        nn.LeakyReLU(), 
+                                        nn.Linear(32, dim_out))
+        
+    def forward(self, t, x, condition):
+        return self._layer(x) + self._cond_bias(condition) + self._hyper_bias(t.view(1, 1))
 
 
 class SquashLinear(nn.Module):
@@ -74,14 +77,17 @@ class SquashLinear(nn.Module):
 
 
 class ConcatSquashLinear(nn.Module):
-    def __init__(self, dim_in, dim_out):
+    def __init__(self, dim_in, dim_out, condition_dim):
         super(ConcatSquashLinear, self).__init__()
-        self._layer = nn.Linear(dim_in, dim_out)
+        self._layer = nn.Linear(dim_in + condition_dim, dim_out)
         self._hyper_bias = nn.Linear(1, dim_out, bias=False)
         self._hyper_gate = nn.Linear(1, dim_out)
-
-    def forward(self, t, x):
-        return self._layer(x) * torch.sigmoid(self._hyper_gate(t.view(1, 1))) \
+        self._cond_bias = nn.Sequential(nn.Linear(condition_dim, 32), 
+                                        nn.LeakyReLU(), 
+                                        nn.Linear(32, dim_out))
+    def forward(self, t, x, condition):
+        # x = torch.cat([x, condition], dim=1)
+        return (self._layer(x) + self._cond_bias(condition)) * torch.sigmoid(self._hyper_gate(t.view(1, 1))) \
             + self._hyper_bias(t.view(1, 1))
 
 

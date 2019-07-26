@@ -97,7 +97,7 @@ class ODEnet(nn.Module):
     """
 
     def __init__(
-        self, hidden_dims, input_shape, strides, conv, layer_type="concat", nonlinearity="softplus", num_squeeze=0
+        self, hidden_dims, condition_dim, input_shape, strides, conv, layer_type="concat", nonlinearity="softplus", num_squeeze=0
     ):
         super(ODEnet, self).__init__()
         self.num_squeeze = num_squeeze
@@ -143,7 +143,7 @@ class ODEnet(nn.Module):
             else:
                 raise ValueError('Unsupported stride: {}'.format(stride))
 
-            layer = base_layer(hidden_shape[0], dim_out, **layer_kwargs)
+            layer = base_layer(hidden_shape[0], dim_out, condition_dim, **layer_kwargs)
             layers.append(layer)
             activation_fns.append(NONLINEARITIES[nonlinearity])
 
@@ -157,13 +157,13 @@ class ODEnet(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.activation_fns = nn.ModuleList(activation_fns[:-1])
 
-    def forward(self, t, y):
+    def forward(self, t, y, condition):
         dx = y
         # squeeze
         for _ in range(self.num_squeeze):
             dx = squeeze(dx, 2)
         for l, layer in enumerate(self.layers):
-            dx = layer(t, dx)
+            dx = layer(t, dx, condition)
             # if not last layer, use nonlinearity
             if l < len(self.layers) - 1:
                 dx = self.activation_fns[l](dx)
@@ -277,11 +277,13 @@ class ODEfunc(nn.Module):
     def forward(self, t, states):
         assert len(states) >= 2
         y = states[0]
+        condition = states[2]
 
         # increment num evals
         self._num_evals += 1
 
         # convert to tensor
+        # print(y, t, condition)
         t = torch.tensor(t).type_as(y)
         batchsize = y.shape[0]
 
@@ -295,9 +297,10 @@ class ODEfunc(nn.Module):
         with torch.set_grad_enabled(True):
             y.requires_grad_(True)
             t.requires_grad_(True)
-            for s_ in states[2:]:
+            condition.requires_grad_(True)
+            for s_ in states[3:]:
                 s_.requires_grad_(True)
-            dy = self.diffeq(t, y, *states[2:])
+            dy = self.diffeq(t, y, condition, *states[3:])
             # Hack for 2D data to use brute force divergence computation.
             if not self.training and dy.view(dy.shape[0], -1).shape[1] == 2:
                 divergence = divergence_bf(dy, y).view(batchsize, 1)

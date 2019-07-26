@@ -9,7 +9,7 @@ class SequentialFlow(nn.Module):
         super(SequentialFlow, self).__init__()
         self.chain = nn.ModuleList(layersList)
 
-    def forward(self, x, logpx=None, reverse=False, inds=None):
+    def forward(self, x, logpx=None, condition=None, reverse=False, inds=None):
         if inds is None:
             if reverse:
                 inds = range(len(self.chain) - 1, -1, -1)
@@ -18,9 +18,10 @@ class SequentialFlow(nn.Module):
 
         if logpx is None:
             for i in inds:
-                x = self.chain[i](x, reverse=reverse)
+                x = self.chain[i](z=x, condition=condition, reverse=reverse)
             return x
         else:
             for i in inds:
-                x, logpx = self.chain[i](x, logpx, reverse=reverse)
+                # print(self.chain[i].__class__)
+                x, logpx = self.chain[i](z=x, logpz=logpx, condition=condition, reverse=reverse)
             return x, logpx
