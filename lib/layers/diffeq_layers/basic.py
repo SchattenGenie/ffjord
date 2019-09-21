@@ -58,9 +58,9 @@ class ConcatLinear_v2(nn.Module):
         super(ConcatLinear_v2, self).__init__()
         self._layer = nn.Linear(dim_in, dim_out)
         self._hyper_bias = nn.Linear(1, dim_out, bias=False)
-        self._cond_bias = nn.Sequential(nn.Linear(condition_dim, 32), 
-                                        nn.LeakyReLU(), 
-                                        nn.Linear(32, dim_out))
+        self._cond_bias = nn.Sequential(nn.Linear(condition_dim, 8),
+                                        nn.Tanh(), 
+                                        nn.Linear(8, dim_out))
         
     def forward(self, t, x, condition):
         return self._layer(x) + self._cond_bias(condition) + self._hyper_bias(t.view(1, 1))
@@ -83,7 +83,7 @@ class ConcatSquashLinear(nn.Module):
         self._hyper_bias = nn.Linear(1, dim_out, bias=False)
         self._hyper_gate = nn.Linear(1, dim_out)
         self._cond_bias = nn.Sequential(nn.Linear(condition_dim, 32), 
-                                        nn.LeakyReLU(), 
+                                        nn.Tanh(), 
                                         nn.Linear(32, dim_out))
     def forward(self, t, x, condition):
         # x = torch.cat([x, condition], dim=1)

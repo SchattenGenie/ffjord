@@ -11,7 +11,11 @@ __all__ = ["CNF"]
 
 
 class CNF(nn.Module):
-    def __init__(self, odefunc, T=1.0, train_T=False, regularization_fns=None, odeint=odeint, solver='dopri5', atol=1e-5, rtol=1e-5):
+    def __init__(self, odefunc, T=1.0,
+                 train_T=False,
+                 regularization_fns=None,
+                 odeint=odeint_adjoint,
+                 solver='dopri5', atol=1e-5, rtol=1e-5):
         super(CNF, self).__init__()
         if train_T:
             self.register_parameter("sqrt_end_time", nn.Parameter(torch.sqrt(torch.tensor(T))))
