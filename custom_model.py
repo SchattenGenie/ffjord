@@ -1,5 +1,6 @@
 import six
 import math
+import torch
 
 import lib.layers.wrappers.cnf_regularization as reg_lib
 import lib.spectral_norm as spectral_norm

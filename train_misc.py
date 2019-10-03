@@ -132,14 +132,15 @@ def append_regularization_to_log(log_message, regularization_fns, reg_states):
     return log_message
 
 
-def create_regularization_fns(args):
+def create_regularization_fns(regularizations):
     regularization_fns = []
     regularization_coeffs = []
-
+    if regularizations is None:
+        return regularization_fns, regularization_coeffs
     for arg_key, reg_fn in six.iteritems(REGULARIZATION_FNS):
-        if getattr(args, arg_key) is not None:
+        if arg_key in regularizations:
             regularization_fns.append(reg_fn)
-            regularization_coeffs.append(eval("args." + arg_key))
+            regularization_coeffs.append(regularizations[arg_key])
 
     regularization_fns = tuple(regularization_fns)
     regularization_coeffs = tuple(regularization_coeffs)
