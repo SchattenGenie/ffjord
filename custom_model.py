@@ -80,12 +80,16 @@ def standard_normal_logprob(z, data):
     return logZ - zpow / 2
 
 
-def compute_loss(model, data, condition):
+def compute_loss(model, data, condition, weights=None):
     zero = torch.zeros(data.shape[0], 1).to(data.device)
     z, delta_logp = model(data, zero, condition=condition)
     logpz = standard_normal_logprob(z, data).sum(1, keepdim=True)
     logpx = logpz - delta_logp
-    loss = -torch.mean(logpx)
+    if weights is None:
+        loss = -torch.mean(logpx)
+    else:
+        weights = torch.tensor(weights).float().to(logpx)
+        loss = -torch.mean(logpx * weights)
     return loss
 
 
